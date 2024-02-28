@@ -1,0 +1,6 @@
+WEB_FOLDER = 'web'
+TEMPLATES_FOLDER = 'templates'
+STATIC_FOLDER = 'static'
+CSS_FOLDER = 'css'
+JS_FOLDER = 'js'
+UTILS_FOLDER = 'utils'

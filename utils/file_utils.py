@@ -8,25 +8,25 @@ def sanitize_filename(filename):
     return re.sub(r'\W+', '_', val)
 
 
-def create_file(start_path, file_name, file_extension, content):
+def make_file(start_path, file_name, file_extension, content):
     file_name = sanitize_filename(file_name)
     path = os.path.join(start_path, f'{file_name}.{file_extension}')
-    with open(path, 'x') as f:
+    with open(path, 'x', encoding='UTF-8') as f:
         f.write(content)
 
 
-def create_folder(start_path, folder_name):
-    folder_name = sanitize_filename(folder_name)
-    path = os.path.join(start_path, folder_name)
-    os.mkdir(path)
+def make_folder(start_path, name_or_names):
+    if isinstance(name_or_names, list):
+        for folder_name in name_or_names:
+            folder_name = sanitize_filename(folder_name)
+            path = os.path.join(start_path, folder_name)
+            os.mkdir(path)
+    else:
+        folder_name = sanitize_filename(name_or_names)
+        path = os.path.join(start_path, folder_name)
+        os.mkdir(path)
 
 
-def create_folders(start_path, folders_names):
-    for folder_name in folders_names:
-        create_folder(start_path, folder_name)
-
-
-def create_folder_hierarchy(start_path, folder_hierarchy):
+def make_folder_hierarchy(start_path, folder_hierarchy):
     folder_hierarchy = sanitize_filename(folder_hierarchy)
-    path = os.path.join(start_path, folder_hierarchy)
-    os.makedirs(path)
+    os.makedirs(os.path.join(start_path, folder_hierarchy))
