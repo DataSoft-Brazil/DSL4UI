@@ -33,7 +33,7 @@ make_folder(app_root_path, [WEB_FOLDER, UTILS_FOLDER])
 
 make_file(web_path, '__init__', PYTHON_FILE, generate_web_init_content(dsl_app))
 make_file(web_path, 'routes', PYTHON_FILE, generate_web_routes_content(dsl_app))
-make_file(utils_path, 'flask_utils', PYTHON_FILE, flask_utils_content())
+make_file(utils_path, 'flask_utils', PYTHON_FILE, flask_utils_content)
 
 make_folder(web_path, [TEMPLATES_FOLDER, STATIC_FOLDER])
 make_file(templates_path, 'layout', HTML_FILE, generate_layout_template(dsl_app))
