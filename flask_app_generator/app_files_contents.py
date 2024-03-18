@@ -1,14 +1,17 @@
-from utils.generator_utils import WEB_FOLDER
+from utils.generator_utils import WEB_FOLDER_NAME
 
-run_content = f'''from {WEB_FOLDER} import app
+run_content = f'''from {WEB_FOLDER_NAME} import app
 
 app.run(host='0.0.0.0', port='5000', debug=True)
 '''
 
 
 def generate_web_init_content(dsl_app):
-    login_manager = dsl_app['login_manager'] if 'login_manager' in dsl_app else None
-    init_content = '''from flask_sqlalchemy import SQLAlchemy
+    # login_manager = dsl_app['login_manager'] if 'login_manager' in dsl_app else None
+    main_db = dsl_app['db']['main']
+    alt_dbs = dsl_app['db'].copy()
+    del alt_dbs['main']
+    init_content = '''# from flask_sqlalchemy import SQLAlchemy
 # from db import get_db_uri_from_env
 # from flask_restful import Api
 from flask import Flask
@@ -17,7 +20,18 @@ app = Flask(__name__)
 # api_restful = Api(app)
 
 app.config["SECRET_KEY"] = "36f751563a37902a7c5a3e2f067f625c"
-# app.config["SQLALCHEMY_DATABASE_URI"] = get_db_uri_from_env()
+'''
+    init_content += f'''
+# app.config["SQLALCHEMY_DATABASE_URI"] = '{main_db}'
+# app.config["SQLALCHEMY_BINDS"] = {alt_dbs}
+
+# exemplo de código para executar:
+# if db_key == 'main':
+#     db.session.execute(query)
+# else: 
+#     db.session.execute(query, bind=db.get_engine(app, db_key))
+'''
+    init_content += '''
 # app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # app.config["SQLALCHEMY_ECHO"] = False
 # app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"max_identifier_length": 30}
@@ -27,7 +41,7 @@ app.config["SECRET_KEY"] = "36f751563a37902a7c5a3e2f067f625c"
 # import web_app.login_manager
 
 # import web_app.api.routes_api\n'''
-    init_content += f'import {WEB_FOLDER}.routes\n'
+    init_content += f'import {WEB_FOLDER_NAME}.routes\n'
     return init_content
 
 
@@ -36,10 +50,10 @@ def generate_web_routes_content(dsl_app):
     routes_content = f'''# from flask_login import login_user, login_required, logout_user, current_user
 # from db.data_access_objects import Usuario
 # from utils.utils_crypt import check_hash
-# from {WEB_FOLDER}.forms import LoginForm
+# from {WEB_FOLDER_NAME}.forms import LoginForm
 from flask import render_template, flash, redirect, request
 from utils.flask_utils import url_for
-from {WEB_FOLDER} import app
+from {WEB_FOLDER_NAME} import app
 
 
 @app.route("/")
