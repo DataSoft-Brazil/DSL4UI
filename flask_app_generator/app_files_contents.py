@@ -9,8 +9,8 @@ app.run(host='0.0.0.0', port='5000', debug=True)
 def generate_web_init_content(dsl_app):
     # login_manager = dsl_app['login_manager'] if 'login_manager' in dsl_app else None
     main_db = dsl_app['db']['main']
-    alt_dbs = dsl_app['db'].copy()
-    del alt_dbs['main']
+    alternative_dbs = dsl_app['db'].copy()
+    del alternative_dbs['main']
     init_content = '''# from flask_sqlalchemy import SQLAlchemy
 # from db import get_db_uri_from_env
 # from flask_restful import Api
@@ -22,8 +22,11 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = "36f751563a37902a7c5a3e2f067f625c"
 '''
     init_content += f'''
-# app.config["SQLALCHEMY_DATABASE_URI"] = '{main_db}'
-# app.config["SQLALCHEMY_BINDS"] = {alt_dbs}
+# app.config["SQLALCHEMY_DATABASE_URI"] = "{main_db}"'''
+    if alternative_dbs:
+        init_content += f'''
+# app.config["SQLALCHEMY_BINDS"] = {alternative_dbs}'''
+    init_content += '''
 
 # exemplo de código para executar:
 # if db_key == 'main':
@@ -84,6 +87,14 @@ def home():
 #    logout_user()
 #    return redirect(url_for("login"))
 '''
+    for route in dsl_app['routes']:
+        template_name = route['endpoint'][1:].replace('/', '_')
+        route_title = route.get('title') or ''
+        routes_content += f'''\n
+@app.route("{route['endpoint']}")
+# @login_required
+def {template_name}():
+    return render_template("{template_name}.html", title="{route_title} - {app_title}")\n'''
     return routes_content
 
 

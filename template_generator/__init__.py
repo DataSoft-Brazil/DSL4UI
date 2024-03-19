@@ -1,5 +1,5 @@
 def generate_layout_template(dsl_app):
-    app_title = dsl_app['title'] if 'title' in dsl_app else 'Default'
+    app_title = dsl_app.get('title') or 'Default'
     app_theme = dsl_app['theme'] if 'theme' in dsl_app else 'light'
     layout_content = '<!DOCTYPE html>\n'
     layout_content += f'<html lang="pt-br" data-bs-theme="{app_theme}">\n\t'
@@ -24,7 +24,11 @@ def generate_layout_template(dsl_app):
                         </button>
                         <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
                             <div class="navbar-nav">\n\t\t\t\t\t\t\t'''
-    layout_content += f'''<a class="nav-link active" href="{{{{ url_for('home') }}}}">{app_title}</a>'''
+    layout_content += f'''<a class="nav-link active" href="{{{{ url_for('home') }}}}">{app_title}</a>\n\t\t\t\t\t\t\t'''
+    for route in dsl_app['routes']:
+        template_name = route['endpoint'][1:].replace('/', '_')
+        route_title = route.get('title') or ''
+        layout_content += f'''<a class="nav-link" href="{{{{ url_for('{template_name}') }}}}">{route_title}</a>\n\t\t\t\t\t\t\t'''
     layout_content += '''\n\t\t\t\t\t\t</div>
                         </div>
                     </div>
@@ -64,7 +68,7 @@ def generate_layout_template(dsl_app):
 
 
 def generate_home_template(dsl_app):
-    app_title = dsl_app['title'] if 'title' in dsl_app else 'Default'
+    app_title = dsl_app.get('title') or 'Default'
     home_content = '''{% extends "layout.html" %}
 
 {% block inside_container %}\n'''
@@ -72,3 +76,36 @@ def generate_home_template(dsl_app):
     home_content += '''{% endblock %}
 '''
     return home_content
+
+
+def generate_custom_template(route):
+    route_title = route.get('title') or ''
+    template_content = '''{% extends "layout.html" %}
+
+    {% block inside_container %}\n'''
+    template_content += f'<h1>{route_title}</h1>'
+    if 'inputs' in route:
+        for input_field in route['inputs']:
+            label = input_field['label']
+            input_id = label.replace(' ', '_').lower()
+            if 'select' in input_field:
+                template_content += f'''\n
+<label for="{input_id}" class="form-label">{label}</label>
+<select class="form-select mb-2" id="{input_id}" aria-label="Default select example">
+    <option selected>Open this select menu</option>
+    <option value="1">One</option>
+    <option value="2">Two</option>
+    <option value="3">Three</option>
+</select>'''
+            if 'textarea' in input_field:
+                template_content += f'''\n
+<div class="form-floating">
+    <textarea class="form-control mb-2" id="{input_id}" style="height: 100px" placeholder="Leave a comment here"></textarea>
+    <label for="{input_id}">{label}</label>
+</div>'''
+    if 'submit' in route:
+        template_content += f'''\n
+<button class="btn btn-primary mb-2" type="submit">{route['submit']}</button>'''
+    template_content += '''\n{% endblock %}
+'''
+    return template_content
