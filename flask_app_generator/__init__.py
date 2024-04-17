@@ -1,7 +1,7 @@
 from utils.generator_utils import WEB_FOLDER_NAME, TEMPLATES_FOLDER_NAME, STATIC_FOLDER_NAME, CSS_FOLDER_NAME, \
     JS_FOLDER_NAME, UTILS_FOLDER_NAME
-from flask_app_generator.app_files_contents import run_content, generate_web_init_content, generate_web_routes_content, \
-    flask_utils_content
+from flask_app_generator.files_content import run_content, generate_web_init_content, generate_web_routes_content, \
+    flask_utils_content, sql_utils_content
 from template_generator import generate_layout_template, generate_home_template, generate_custom_template
 from utils.file_utils import make_folder_hierarchy, make_folder, make_file
 import yaml
@@ -38,6 +38,7 @@ make_folder(root_path, [WEB_FOLDER_NAME, UTILS_FOLDER_NAME])
 make_file(web_path, '__init__', PYTHON_EXTENSION, generate_web_init_content(dsl_app))
 make_file(web_path, 'routes', PYTHON_EXTENSION, generate_web_routes_content(dsl_app))
 make_file(utils_path, 'flask_utils', PYTHON_EXTENSION, flask_utils_content)
+make_file(utils_path, 'sql_utils', PYTHON_EXTENSION, sql_utils_content)
 
 make_folder(web_path, [TEMPLATES_FOLDER_NAME, STATIC_FOLDER_NAME])
 make_file(templates_path, 'layout', HTML_EXTENSION, generate_layout_template(dsl_app))

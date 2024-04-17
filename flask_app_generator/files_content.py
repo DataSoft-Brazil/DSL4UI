@@ -11,9 +11,9 @@ def generate_web_init_content(dsl_app):
     main_db = dsl_app['db']['main']
     alternative_dbs = dsl_app['db'].copy()
     del alternative_dbs['main']
-    init_content = '''# from flask_sqlalchemy import SQLAlchemy
-# from db import get_db_uri_from_env
+    init_content = '''# from db import get_db_uri_from_env
 # from flask_restful import Api
+from flask_sqlalchemy import SQLAlchemy
 from flask import Flask
 
 app = Flask(__name__)
@@ -22,24 +22,17 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = "36f751563a37902a7c5a3e2f067f625c"
 '''
     init_content += f'''
-# app.config["SQLALCHEMY_DATABASE_URI"] = "{main_db}"'''
+app.config["SQLALCHEMY_DATABASE_URI"] = "{main_db}"'''
     if alternative_dbs:
         init_content += f'''
-# app.config["SQLALCHEMY_BINDS"] = {alternative_dbs}'''
-    init_content += '''
+app.config["SQLALCHEMY_BINDS"] = {alternative_dbs}'''
 
-# exemplo de código para executar:
-# if db_key == 'main':
-#     db.session.execute(query)
-# else: 
-#     db.session.execute(query, bind=db.get_engine(app, db_key))
-'''
     init_content += '''
-# app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-# app.config["SQLALCHEMY_ECHO"] = False
-# app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"max_identifier_length": 30}
-# app.config['LOGIN_DISABLED'] = False
-# db = SQLAlchemy(app)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_ECHO"] = False
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"max_identifier_length": 30}
+app.config['LOGIN_DISABLED'] = False
+db = SQLAlchemy(app)
 
 # import web_app.login_manager
 
@@ -56,7 +49,8 @@ def generate_web_routes_content(dsl_app):
 # from {WEB_FOLDER_NAME}.forms import LoginForm
 from flask import render_template, flash, redirect, request
 from utils.flask_utils import url_for
-from {WEB_FOLDER_NAME} import app
+from utils.sql_utils import parse_sql_db_key_and_query
+from {WEB_FOLDER_NAME} import app, db
 
 
 @app.route("/")
@@ -90,11 +84,31 @@ def home():
     for route in dsl_app['routes']:
         template_name = route['endpoint'][1:].replace('/', '_')
         route_title = route.get('title') or ''
+        select_options = ''
         routes_content += f'''\n
 @app.route("{route['endpoint']}")
 # @login_required
-def {template_name}():
-    return render_template("{template_name}.html", title="{route_title} - {app_title}")\n'''
+def {template_name}():'''
+        if 'inputs' in route:
+            for input_field in route['inputs']:
+                if 'select' in input_field:
+                    label = input_field['label']
+                    select_options_listname = f'select_{label.lower()}_options'
+                    select_options += f', {select_options_listname}={select_options_listname}, select_{label.lower()}_current=select_{label.lower()}_current'
+                    routes_content += f'''
+    db_key, query = parse_sql_db_key_and_query('{input_field['select']}')
+    if db_key is not None:
+        if db_key == 'main':
+            q_result = db.session.execute(query)
+        else:
+            q_result = db.session.execute(query, bind=db.get_engine(app, f'{{db_key}}'))
+    {select_options_listname} = []
+    for row in q_result:
+        {select_options_listname}.append((row[0], row[1]))
+    select_{label.lower()}_current = {select_options_listname}[0][0]
+'''
+        routes_content += f'''
+    return render_template("{template_name}.html", title="{route_title} - {app_title}"{select_options})\n'''
     return routes_content
 
 
@@ -103,4 +117,16 @@ flask_utils_content = '''from flask import url_for as url_for_original
 def url_for(endpoint, **values):
     url = url_for_original(endpoint, **values)
     return url[1:]
+'''
+
+sql_utils_content = r'''
+import re
+
+def parse_sql_db_key_and_query(text):
+    match = re.findall(r'[fF]rom (.*?)\.', text)
+    if match:
+        query = 'SELECT id, ' + text.replace(match[0] + '.', '')
+        return match[0], query
+    else:
+        return None, None
 '''

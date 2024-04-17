@@ -91,11 +91,10 @@ def generate_custom_template(route):
             if 'select' in input_field:
                 template_content += f'''\n
 <label for="{input_id}" class="form-label">{label}</label>
-<select class="form-select mb-2" id="{input_id}" aria-label="Default select example">
-    <option selected>Open this select menu</option>
-    <option value="1">One</option>
-    <option value="2">Two</option>
-    <option value="3">Three</option>
+<select class="form-select mb-2" id="{input_id}" aria-label="Selecionar {label}">
+{{% for option_id, option_name in select_{label.lower()}_options %}}
+<option {{{{'selected ' if option_id == select_{label.lower()}_current else ''}}}}value="{{{{option_id}}}}">{{{{option_name}}}}</option>
+{{% endfor %}}
 </select>'''
             if 'textarea' in input_field:
                 template_content += f'''\n
