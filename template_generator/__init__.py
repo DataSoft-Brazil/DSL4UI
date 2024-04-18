@@ -78,40 +78,83 @@ def generate_home_template(dsl_app):
     return home_content
 
 
+def generate_input_html(input_field):
+    label = input_field['label']
+    input_id = label.replace(' ', '_').lower()
+    content = ''
+    input_html = ''
+    if 'select' in input_field:
+        input_html = f'''\n
+    <label for="{input_id}" class="form-label">{label}</label>
+    <select class="form-select mb-2" id="{input_id}" aria-label="Selecionar {label}">
+    {{% for option_id, option_name in select_{label.lower()}_options %}}
+    <option {{{{'selected ' if option_id == select_{label.lower()}_current else ''}}}}value="{{{{option_id}}}}">{{{{option_name}}}}</option>
+    {{% endfor %}}
+    </select>'''
+    elif 'textarea' in input_field:
+        content = input_field['textarea']
+        input_html = f'''\n
+    <div class="form-floating">
+        <textarea class="form-control mb-2" id="{input_id}" style="height: 100px">{content}</textarea>
+        <label for="{input_id}">{label}</label>
+    </div>'''
+    return input_html, input_id, content
+
+
 def generate_custom_template(route):
     route_title = route.get('title') or ''
     template_content = '''{% extends "layout.html" %}
 
     {% block inside_container %}\n'''
     template_content += f'<h1>{route_title}</h1>'
-    if 'backend' in route:
-        endpoint = route['backend'].get('endpoint') or ''
-        method = route['backend'].get('method') or 'GET'
-        template_content += f'''<form action="{endpoint}" method="{method}" id="form_{route_title.lower().replace(' ','_')}">
-\n'''
+    if 'submit' in route:
+        template_content += f'''<form action="" method="GET" id="form_{route_title.lower().replace(' ','_')}">\n'''
     if 'inputs' in route:
         for input_field in route['inputs']:
-            label = input_field['label']
-            input_id = label.replace(' ', '_').lower()
-            if 'select' in input_field:
-                template_content += f'''\n
-<label for="{input_id}" class="form-label">{label}</label>
-<select class="form-select mb-2" id="{input_id}" aria-label="Selecionar {label}">
-{{% for option_id, option_name in select_{label.lower()}_options %}}
-<option {{{{'selected ' if option_id == select_{label.lower()}_current else ''}}}}value="{{{{option_id}}}}">{{{{option_name}}}}</option>
-{{% endfor %}}
-</select>'''
-            if 'textarea' in input_field:
-                template_content += f'''\n
-<div class="form-floating">
-    <textarea class="form-control mb-2" id="{input_id}" style="height: 100px" placeholder="Leave a comment here"></textarea>
-    <label for="{input_id}">{label}</label>
-</div>'''
+            input_html, _, _ = generate_input_html(input_field)
+            template_content += input_html
     if 'submit' in route:
         template_content += f'''\n
 <button class="btn btn-primary mb-2" type="submit">{route['submit']}</button>'''
-    if 'backend' in route:
         template_content += '\n</form>'
-    template_content += '''\n{% endblock %}
-'''
+    template_content += '''\n{% endblock %}\n'''
+    if 'backend' in route:
+        template_content += f'''
+{{% block scripts %}}
+<script src="{{{{ url_for('static', filename='js/{route['endpoint'][1:].replace('/', '_')}.js') }}}}"></script>
+{{% endblock %}}\n'''
     return template_content
+
+
+def generate_custom_js(route):
+    route_title = route.get('title') or ''
+    js_content = ''
+    if 'endpoint' in route['backend']:
+        js_content = f'''
+function load_resource() {{
+    return $.ajax({{
+        url: "{route['backend']['endpoint']}", 
+        async: false,
+        data: $('#form_{route_title.lower().replace(' ','_')}').serializeArray()
+    }}).done(function(data) {{ return data; }});
+}}\n
+'''
+    if 'outputs' in route:
+        for input_field in route['outputs']:
+            input_html, input_id, content = generate_input_html(input_field)
+            input_html = input_html.replace('id="', 'readonly id="')
+            output_content = content.replace('{back.', '${load_resource().responseJSON.')
+            js_content += f'''
+$('#form_{route_title.lower().replace(' ','_')}').on('submit', function(e) {{
+    e.preventDefault();
+    $('.container').append(`{input_html}`);
+    $('#{input_id}').val(`{output_content}`);
+}});
+
+//$('#modelo_relatorio').on("change", function(event) {{
+//    item = load_report().responseJSON;
+//   $('#report_spec').val(item.report_spec);
+//}});
+
+'''
+    return js_content

@@ -2,7 +2,8 @@ from utils.generator_utils import WEB_FOLDER_NAME, TEMPLATES_FOLDER_NAME, STATIC
     JS_FOLDER_NAME, UTILS_FOLDER_NAME
 from flask_app_generator.files_content import run_content, generate_web_init_content, generate_web_routes_content, \
     flask_utils_content, sql_utils_content
-from template_generator import generate_layout_template, generate_home_template, generate_custom_template
+from template_generator import generate_layout_template, generate_home_template, generate_custom_template, \
+    generate_custom_js
 from utils.file_utils import make_folder_hierarchy, make_folder, make_file
 import yaml
 import os
@@ -51,5 +52,7 @@ if 'routes' in dsl_app:
     for route in dsl_app['routes']:
         template_name = route['endpoint'][1:].replace('/', '_')
         make_file(templates_path, template_name, HTML_EXTENSION, generate_custom_template(route))
+        if 'backend' in route:
+            make_file(js_path, template_name, JS_EXTENSION, generate_custom_js(route))
 
 print('App criado no caminho:', root_path)
