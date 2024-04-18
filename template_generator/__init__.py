@@ -84,6 +84,11 @@ def generate_custom_template(route):
 
     {% block inside_container %}\n'''
     template_content += f'<h1>{route_title}</h1>'
+    if 'backend' in route:
+        endpoint = route['backend'].get('endpoint') or ''
+        method = route['backend'].get('method') or 'GET'
+        template_content += f'''<form action="{endpoint}" method="{method}" id="form_{route_title.lower().replace(' ','_')}">
+\n'''
     if 'inputs' in route:
         for input_field in route['inputs']:
             label = input_field['label']
@@ -105,6 +110,8 @@ def generate_custom_template(route):
     if 'submit' in route:
         template_content += f'''\n
 <button class="btn btn-primary mb-2" type="submit">{route['submit']}</button>'''
+    if 'backend' in route:
+        template_content += '\n</form>'
     template_content += '''\n{% endblock %}
 '''
     return template_content
