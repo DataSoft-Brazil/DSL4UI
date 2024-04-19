@@ -80,25 +80,51 @@ def generate_home_template(dsl_app):
 
 def generate_input_html(input_field):
     label = input_field['label']
-    input_id = label.replace(' ', '_').lower()
-    content = ''
     input_html = ''
-    if 'select' in input_field:
+    input_id = ''
+    input_content = ''
+    input_type = None
+    if 'text' in input_field:
+        input_type = 'text'
+        input_id = input_field['text']
+        input_html = f'''
+    <label for="{input_id}" class="form-label">{label}</label>
+    <input type="text" class="form-control" id="{input_id}">
+'''
+    elif 'decimal' in input_field:
+        input_type = 'decimal'
+        input_id = input_field['decimal']
+        input_html = f'''
+    <label for="{input_id}" class="form-label">{label}</label>
+    <input type="number" step=".01" class="form-control" id="{input_id}">
+'''
+    elif 'select' in input_field:
+        input_type = 'select'
+        input_id = label.replace(' ', '_').lower()
+        select_options_listname = f'select_{label.lower().replace(" ", "_")}_options'
+        select_options_currentname = f'select_{label.lower().replace(" ", "_")}_current'
         input_html = f'''\n
     <label for="{input_id}" class="form-label">{label}</label>
     <select class="form-select mb-2" id="{input_id}" aria-label="Selecionar {label}">
-    {{% for option_id, option_name in select_{label.lower()}_options %}}
-    <option {{{{'selected ' if option_id == select_{label.lower()}_current else ''}}}}value="{{{{option_id}}}}">{{{{option_name}}}}</option>
-    {{% endfor %}}
-    </select>'''
+        {{% for option_id, option_name in {select_options_listname} %}}
+        <option {{{{'selected ' if option_id == {select_options_currentname} else ''}}}}value="{{{{option_id}}}}">{{{{option_name}}}}</option>
+        {{% endfor %}}
+    </select>
+'''
     elif 'textarea' in input_field:
-        content = input_field['textarea']
-        input_html = f'''\n
+        input_type = 'textarea'
+        if '{back.' in input_field['textarea']:
+            input_content = input_field['textarea']
+            input_id = label.replace(' ', '_').lower()
+        else:
+            input_id = input_field['textarea']
+        input_html = f'''
     <div class="form-floating">
-        <textarea class="form-control mb-2" id="{input_id}" style="height: 100px">{content}</textarea>
+        <textarea class="form-control mb-2" id="{input_id}" style="height: 100px">{input_content}</textarea>
         <label for="{input_id}">{label}</label>
-    </div>'''
-    return input_html, input_id, content
+    </div>
+'''
+    return input_html, input_id, input_type, input_content
 
 
 def generate_custom_template(route):
@@ -111,7 +137,7 @@ def generate_custom_template(route):
         template_content += f'''<form action="" method="GET" id="form_{route_title.lower().replace(' ','_')}">\n'''
     if 'inputs' in route:
         for input_field in route['inputs']:
-            input_html, _, _ = generate_input_html(input_field)
+            input_html, _, _, _ = generate_input_html(input_field)
             template_content += input_html
     if 'submit' in route:
         template_content += f'''\n
@@ -140,21 +166,19 @@ function load_resource() {{
 }}\n
 '''
     if 'outputs' in route:
+        js_content += f'''
+$('#form_{route_title.lower().replace(' ', '_')}').on('submit', function(e) {{
+    e.preventDefault();'''
         for input_field in route['outputs']:
-            input_html, input_id, content = generate_input_html(input_field)
+            input_html, input_id, input_type, input_content = generate_input_html(input_field)
             input_html = input_html.replace('id="', 'readonly id="')
-            output_content = content.replace('{back.', '${load_resource().responseJSON.')
             js_content += f'''
-$('#form_{route_title.lower().replace(' ','_')}').on('submit', function(e) {{
-    e.preventDefault();
-    $('.container').append(`{input_html}`);
-    $('#{input_id}').val(`{output_content}`);
-}});
-
-//$('#modelo_relatorio').on("change", function(event) {{
-//    item = load_report().responseJSON;
-//   $('#report_spec').val(item.report_spec);
-//}});
-
-'''
+    $('.container').append(`{input_html}`);'''
+            if input_type == 'textarea':
+                output_content = input_content.replace('{back.', '${item.')
+                js_content += f'''
+    let item = load_resource().responseJSON;
+    $('#{input_id}').val(`{output_content}`);'''
+        js_content += f'''
+}});'''
     return js_content

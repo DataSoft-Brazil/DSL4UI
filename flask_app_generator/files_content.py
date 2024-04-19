@@ -93,8 +93,9 @@ def {template_name}():'''
             for input_field in route['inputs']:
                 if 'select' in input_field:
                     label = input_field['label']
-                    select_options_listname = f'select_{label.lower()}_options'
-                    select_options += f', {select_options_listname}={select_options_listname}, select_{label.lower()}_current=select_{label.lower()}_current'
+                    select_options_listname = f'select_{label.lower().replace(" ", "_")}_options'
+                    select_options_currentname = f'select_{label.lower().replace(" ", "_")}_current'
+                    select_options += f', {select_options_listname}={select_options_listname}, {select_options_currentname}={select_options_currentname}'
                     routes_content += f'''
     db_key, query = parse_sql_db_key_and_query('{input_field['select']}')
     if db_key is not None:
@@ -105,7 +106,7 @@ def {template_name}():'''
     {select_options_listname} = []
     for row in q_result:
         {select_options_listname}.append((row[0], row[1]))
-    select_{label.lower()}_current = {select_options_listname}[0][0]
+    {select_options_currentname} = {select_options_listname}[0][0]
 '''
         routes_content += f'''
     return render_template("{template_name}.html", title="{route_title} - {app_title}"{select_options})\n'''
