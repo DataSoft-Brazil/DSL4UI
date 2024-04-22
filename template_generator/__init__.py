@@ -124,6 +124,32 @@ def generate_input_html(input_field):
         <label for="{input_id}">{label}</label>
     </div>
 '''
+    elif 'table' in input_field:
+        input_type = 'table'
+        input_id = label.replace(' ', '_').lower()
+        table_columns_listname = f'table_{label.lower().replace(" ", "_")}_columns'
+        table_rows_listname = f'table_{label.lower().replace(" ", "_")}_rows'
+        input_html = f'''\n
+    <label for="{input_id}" class="form-label">{label}</label>
+    <table id="{input_id}" class="table table-striped">
+        <thead>
+            <tr>
+            {{% for column in {table_columns_listname} %}}
+                <th>{{{{column}}}}</th>
+            {{% endfor %}}
+            <tr>
+        </thead>
+        <tbody>
+            {{% for row in {table_rows_listname} %}}
+                <tr>
+                    {{% for value in row %}}
+                        <td>{{{{value}}}}</td>
+                    {{% endfor %}}
+                </tr>
+            {{% endfor %}}
+        </tbody>
+    </table>
+'''
     return input_html, input_id, input_type, input_content
 
 

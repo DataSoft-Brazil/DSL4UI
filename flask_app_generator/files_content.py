@@ -1,4 +1,4 @@
-from utils.generator_utils import WEB_FOLDER_NAME
+from utils.generator_utils import WEB_FOLDER_NAME, parse_sql_db_key_and_query
 
 run_content = f'''from {WEB_FOLDER_NAME} import app
 
@@ -8,9 +8,9 @@ app.run(host='0.0.0.0', port='5000', debug=True)
 
 def generate_web_init_content(dsl_app):
     # login_manager = dsl_app['login_manager'] if 'login_manager' in dsl_app else None
-    main_db = dsl_app['db']['main']
+    main_db = dsl_app['db']['db1']
     alternative_dbs = dsl_app['db'].copy()
-    del alternative_dbs['main']
+    del alternative_dbs['db1']
     init_content = '''# from db import get_db_uri_from_env
 # from flask_restful import Api
 from flask_sqlalchemy import SQLAlchemy
@@ -51,6 +51,7 @@ from flask import render_template, flash, redirect, request
 from utils.flask_utils import url_for
 from utils.sql_utils import parse_sql_db_key_and_query
 from {WEB_FOLDER_NAME} import app, db
+from sqlalchemy.sql import text
 
 
 @app.route("/")
@@ -84,7 +85,8 @@ def home():
     for route in dsl_app['routes']:
         template_name = route['endpoint'][1:].replace('/', '_')
         route_title = route.get('title') or ''
-        select_options = ''
+        select_variables = ''
+        table_variables = ''
         routes_content += f'''\n
 @app.route("{route['endpoint']}")
 # @login_required
@@ -95,21 +97,42 @@ def {template_name}():'''
                     label = input_field['label']
                     select_options_listname = f'select_{label.lower().replace(" ", "_")}_options'
                     select_options_currentname = f'select_{label.lower().replace(" ", "_")}_current'
-                    select_options += f', {select_options_listname}={select_options_listname}, {select_options_currentname}={select_options_currentname}'
+                    select_variables += f', {select_options_listname}={select_options_listname}, {select_options_currentname}={select_options_currentname}'
                     routes_content += f'''
-    db_key, query = parse_sql_db_key_and_query('{input_field['select']}')
+    db_key, query, fields = parse_sql_db_key_and_query("""{input_field['select']}""", 'select')
     if db_key is not None:
-        if db_key == 'main':
-            q_result = db.session.execute(query)
+        if db_key == 'db1':
+            q_result = db.session.execute(text(query))
         else:
-            q_result = db.session.execute(query, bind=db.get_engine(app, f'{{db_key}}'))
+            q_result = db.session.execute(text(query), bind=db.get_engine(app, f'{{db_key}}'))
     {select_options_listname} = []
-    for row in q_result:
-        {select_options_listname}.append((row[0], row[1]))
+    if q_result:
+        for row in q_result:
+            {select_options_listname}.append((row[0], row[1]))
     {select_options_currentname} = {select_options_listname}[0][0]
 '''
+                if 'table' in input_field:
+                    label = input_field['label']
+                    table_columns_listname = f'table_{label.lower().replace(" ", "_")}_columns'
+                    table_rows_listname = f'table_{label.lower().replace(" ", "_")}_rows'
+                    table_variables += f', {table_columns_listname}={table_columns_listname}, {table_rows_listname}={table_rows_listname}'
+                    _, _, fields = parse_sql_db_key_and_query(input_field['table'], 'table')
+                    routes_content += f'''
+    db_key, query, fields = parse_sql_db_key_and_query("""{input_field['table']}""", 'table')
+    if db_key is not None:
+        if db_key == 'db1':
+            q_result = db.session.execute(text(query))
+        else:
+            q_result = db.session.execute(text(query), bind=db.get_engine(app, f'{{db_key}}'))
+    print(fields)
+    {table_columns_listname} = fields
+    {table_rows_listname} = []
+    if q_result:
+        for row in q_result:
+            {table_rows_listname}.append(({', '.join(["row[" + str(i) + "]" for i in range(0,len(fields))])}))
+'''
         routes_content += f'''
-    return render_template("{template_name}.html", title="{route_title} - {app_title}"{select_options})\n'''
+    return render_template("{template_name}.html", title="{route_title} - {app_title}"{select_variables}{table_variables})\n'''
     return routes_content
 
 
@@ -123,11 +146,17 @@ def url_for(endpoint, **values):
 sql_utils_content = r'''
 import re
 
-def parse_sql_db_key_and_query(text):
-    match = re.findall(r'[fF]rom (.*?)\.', text)
-    if match:
-        query = 'SELECT id, ' + text.replace(match[0] + '.', '')
-        return match[0], query
+def parse_sql_db_key_and_query(text, input_type):
+    db_key_match = re.findall(r'[fF]rom (.*?)\.', text)
+    if db_key_match:
+        db_key = db_key_match[0]
+        infer_id_query = 'id, ' if input_type == 'select' else ''
+        query = f'SELECT {infer_id_query}' + text.replace(db_key + '.', '')
+        fields = []
+        for field_match in re.findall(r'(.*?),|(.*)[fF]rom', text):
+            field = field_match[0] or field_match[1]
+            fields.append(field.strip())
+        return db_key, query, fields
     else:
-        return None, None
+        return None, None, None
 '''
