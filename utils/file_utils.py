@@ -13,6 +13,7 @@ def make_file(start_path, file_name, file_extension, content):
     path = os.path.join(start_path, f'{file_name}.{file_extension}')
     with open(path, 'x', encoding='UTF-8') as f:
         f.write(content)
+        print('arquivo gerado -', path)
 
 
 def make_folder(start_path, name_or_names):
